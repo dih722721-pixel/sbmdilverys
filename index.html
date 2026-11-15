@@ -6,18 +6,20 @@
 <style>
   body { font-family: 'Segoe UI', sans-serif; background: #111; color: #fff; margin: 0; padding: 15px; }
   h1, h2 { font-weight: 300; margin-top: 0; color: #00a2ed; }
-  h2 { font-size: 22px; margin-top: 20px; border-bottom: 1px solid #333; padding-bottom: 6px; }
+  h2 { font-size: 22px; margin-top: 22px; border-bottom: 1px solid #333; padding-bottom: 6px; }
   .bar { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; }
   input { font-size: 18px; padding: 12px; border: none; background: #222; color: #fff; flex: 1; min-width: 130px; }
   button { font-size: 18px; padding: 12px 16px; border: none; cursor: pointer; font-weight: bold; color: #fff; }
   .add { background: #008a00; }
+  .b-out { background: #d80073; }
   .grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
   .tile { background: #1e1e1e; border-top: 6px solid #00a2ed; padding: 14px; min-width: 180px; flex: 1; }
   .tile-title { font-size: 18px; font-weight: bold; }
   .tile-qty { font-size: 32px; margin: 8px 0; color: #00a2ed; }
   .card { background: #1e1e1e; padding: 15px; margin-bottom: 10px; border-left: 8px solid #d80073; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
   .card.packed { border-left-color: #f0a30a; }
-  .card.done { border-left-color: #008a00; opacity: 0.65; }
+  .card.done, .card.in { border-left-color: #008a00; }
+  .card.done { opacity: 0.65; }
   .info { font-size: 20px; }
   .sub { font-size: 15px; color: #bbb; margin-top: 4px; }
   .btns { display: flex; gap: 8px; }
@@ -30,6 +32,14 @@
 </head>
 <body>
   <h1>SBM Crate Dispatch Terminal</h1>
+
+  <h2>Staff Clock In / Clock Out</h2>
+  <div class="bar">
+    <input id="empName" placeholder="Employee Name">
+    <button class="add" onclick="punch('IN')">Clock In</button>
+    <button class="b-out" onclick="punch('OUT')">Clock Out</button>
+  </div>
+  <div id="clockList"></div>
 
   <h2>Incoming Shipments & Crate Stock</h2>
   <div class="bar">
@@ -49,14 +59,26 @@
   <div id="orderList"></div>
 
   <script>
+    let logs = JSON.parse(localStorage.getItem('sbm_logs') || '[]');
     let stock = JSON.parse(localStorage.getItem('sbm_stock') || '[]');
     let orders = JSON.parse(localStorage.getItem('sbm_orders') || '[]');
 
     function save() {
+      localStorage.setItem('sbm_logs', JSON.stringify(logs));
       localStorage.setItem('sbm_stock', JSON.stringify(stock));
       localStorage.setItem('sbm_orders', JSON.stringify(orders));
       render();
     }
+
+    function punch(type) {
+      if (!empName.value.trim()) return;
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      logs.unshift({ name: empName.value.trim(), type: type, time: time });
+      empName.value = '';
+      save();
+    }
+
+    function delLog(i) { logs.splice(i, 1); save(); }
 
     function addStock() {
       if (!sName.value) return;
@@ -83,6 +105,18 @@
     function openMap(q) { if (q) window.open('bingmaps:?q=' + encodeURIComponent(q)); }
 
     function render() {
+      clockList.innerHTML = logs.map((l, i) => `
+        <div class="card ${l.type === 'IN' ? 'in' : ''}">
+          <div>
+            <div class="info"><b>${l.name}</b> — CLOCKED ${l.type}</div>
+            <div class="sub">Time: ${l.time}</div>
+          </div>
+          <div class="btns">
+            <button class="b-del" onclick="delLog(${i})">X</button>
+          </div>
+        </div>
+      `).join('');
+
       stockGrid.innerHTML = stock.map((s, i) => `
         <div class="tile">
           <div class="tile-title">${s.name}</div>
@@ -111,5 +145,10 @@
     }
     render();
   </script>
-</body>
+</<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js');
+  }
+</script>
+>
 </html>
