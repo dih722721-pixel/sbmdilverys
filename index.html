@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SBM Crate Dispatch & Shipments</title>
+<style>
+  body { font-family: 'Segoe UI', sans-serif; background: #111; color: #fff; margin: 0; padding: 15px; }
+  h1, h2 { font-weight: 300; margin-top: 0; color: #00a2ed; }
+  h2 { font-size: 22px; margin-top: 20px; border-bottom: 1px solid #333; padding-bottom: 6px; }
+  .bar { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; }
+  input { font-size: 18px; padding: 12px; border: none; background: #222; color: #fff; flex: 1; min-width: 130px; }
+  button { font-size: 18px; padding: 12px 16px; border: none; cursor: pointer; font-weight: bold; color: #fff; }
+  .add { background: #008a00; }
+  .grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
+  .tile { background: #1e1e1e; border-top: 6px solid #00a2ed; padding: 14px; min-width: 180px; flex: 1; }
+  .tile-title { font-size: 18px; font-weight: bold; }
+  .tile-qty { font-size: 32px; margin: 8px 0; color: #00a2ed; }
+  .card { background: #1e1e1e; padding: 15px; margin-bottom: 10px; border-left: 8px solid #d80073; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .card.packed { border-left-color: #f0a30a; }
+  .card.done { border-left-color: #008a00; opacity: 0.65; }
+  .info { font-size: 20px; }
+  .sub { font-size: 15px; color: #bbb; margin-top: 4px; }
+  .btns { display: flex; gap: 8px; }
+  .b-pack { background: #f0a30a; color: #000; }
+  .b-done { background: #008a00; }
+  .b-map { background: #0050ef; }
+  .b-del { background: #e51400; }
+  .b-step { background: #333; padding: 10px 16px; }
+</style>
+</head>
+<body>
+  <h1>SBM Crate Dispatch Terminal</h1>
+
+  <h2>Incoming Shipments & Crate Stock</h2>
+  <div class="bar">
+    <input id="sName" placeholder="Shipment Item (e.g. Xmas Cakes)">
+    <input id="sQty" type="number" placeholder="Count" style="max-width: 100px;">
+    <button class="add" onclick="addStock()">+ Log Shipment</button>
+  </div>
+  <div class="grid" id="stockGrid"></div>
+
+  <h2>VIP Crate Slots & Delivery Stops</h2>
+  <div class="bar">
+    <input id="who" placeholder="VIP Name / Crate Slot">
+    <input id="item" placeholder="Snacks / Order">
+    <input id="loc" placeholder="Drop Spot / Street">
+    <button class="add" onclick="addOrder()">+ Add Order</button>
+  </div>
+  <div id="orderList"></div>
+
+  <script>
+    let stock = JSON.parse(localStorage.getItem('sbm_stock') || '[]');
+    let orders = JSON.parse(localStorage.getItem('sbm_orders') || '[]');
+
+    function save() {
+      localStorage.setItem('sbm_stock', JSON.stringify(stock));
+      localStorage.setItem('sbm_orders', JSON.stringify(orders));
+      render();
+    }
+
+    function addStock() {
+      if (!sName.value) return;
+      stock.push({ name: sName.value, qty: parseInt(sQty.value) || 1 });
+      sName.value = ''; sQty.value = '';
+      save();
+    }
+
+    function chgStock(i, d) {
+      stock[i].qty += d;
+      if (stock[i].qty <= 0) stock.splice(i, 1);
+      save();
+    }
+
+    function addOrder() {
+      if (!who.value || !item.value) return;
+      orders.unshift({ who: who.value, item: item.value, loc: loc.value, st: 'new' });
+      who.value = ''; item.value = ''; loc.value = '';
+      save();
+    }
+
+    function setSt(i, st) { orders[i].st = st; save(); }
+    function delOrder(i) { orders.splice(i, 1); save(); }
+    function openMap(q) { if (q) window.open('bingmaps:?q=' + encodeURIComponent(q)); }
+
+    function render() {
+      stockGrid.innerHTML = stock.map((s, i) => `
+        <div class="tile">
+          <div class="tile-title">${s.name}</div>
+          <div class="tile-qty">${s.qty}</div>
+          <div class="btns">
+            <button class="b-step" onclick="chgStock(${i}, -1)">-1</button>
+            <button class="b-step" onclick="chgStock(${i}, 1)">+1</button>
+          </div>
+        </div>
+      `).join('');
+
+      orderList.innerHTML = orders.map((o, i) => `
+        <div class="card ${o.st}">
+          <div>
+            <div class="info"><b>${o.who}</b> — ${o.item}</div>
+            <div class="sub">Stop: ${o.loc || 'Blacktop / Cage'} • Status: ${o.st.toUpperCase()}</div>
+          </div>
+          <div class="btns">
+            <button class="b-pack" onclick="setSt(${i},'packed')">Packed</button>
+            <button class="b-done" onclick="setSt(${i},'done')">Delivered</button>
+            <button class="b-map" onclick="openMap('${(o.loc||'').replace(/'/g,"")}')">Map</button>
+            <button class="b-del" onclick="delOrder(${i})">X</button>
+          </div>
+        </div>
+      `).join('');
+    }
+    render();
+  </script>
+</body>
+</html>
